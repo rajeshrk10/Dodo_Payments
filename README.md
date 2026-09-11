@@ -1,154 +1,279 @@
-# Dodo Payments - Tiny Embeddable Checkout SDK & App
+# Dodo Payments — Tiny Embeddable Checkout
 
-A lightweight, secure, embeddable checkout solution built for **Dodo Payments**. Designed with zero host page card exposure, isolated iframe sandboxing, strict `postMessage` cross-domain security, edge-case state machine, and a merchant demo store featuring a live event inspector.
+A TypeScript demo of a tiny embeddable checkout for Dodo Payments. The project contains three pieces: a merchant demo site, an SDK module that opens the checkout, and a hosted checkout application that runs inside an iframe.
 
----
+The implementation focuses on a short, trustworthy payment flow, clear callback behavior, required fake-payment scenarios, loading and error states, and protection against duplicate checkout requests.
 
-## Quick Start (How to Run)
+## Quick Start
 
 ### Prerequisites
-- Node.js >= 18.x
-- npm >= 9.x
 
-### Installation & Local Development
+- Node.js 18 or later
+
+- npm 9 or later
+
+### Run locally
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Start the unified development server
 npm run dev
 ```
 
-Open your browser to [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
-- **Demo Store Application**: `http://localhost:3000/index.html` (or `http://localhost:3000/`)
-- **Checkout Iframe App**: `http://localhost:3000/checkout.html`
+- Demo store: `http://localhost:3000/`
 
----
+- Checkout application: `http://localhost:3000/checkout.html`
 
-## Live Deployment
+### Production build
 
-The application is deployed and available at:
-
-- **Live Demo Store**: https://dodo-payment.vercel.app/
-- **Live Checkout Iframe**: https://dodo-payment.vercel.app/checkout.html
-
----
-
-## Architecture & How the Pieces Talk to Each Other
-
-The project is structured into three main layers:
-
-```
-+-----------------------------------------------------------------------------------+
-| Host Merchant Page (Demo Store)                                                   |
-|                                                                                   |
-|  [ Buy Now ] ---------> DodoCheckout.open({ productId, theme, ... })              |
-|                                |                                                  |
-|                                v                                                  |
-|                        Creates Modal Overlay & <iframe>                           |
-|                                |                                                  |
-|   +----------------------------|----------------------------------------------+   |
-|   | Sandboxed Iframe           v                                              |   |
-|   | (Checkout Web App)                                                        |   |
-|   |  - Form state & card brand auto-detection                                 |   |
-|   |  - Luhn algorithm & expiry date validation                                |   |
-|   |  - Payment simulation engine (Test cards)                                 |   |
-|   |                                                                           |   |
-|   |  postMessage({ type: 'DODO_CHECKOUT_SUCCESS', sessionId })                |   |
-|   +----------------------------|----------------------------------------------+   |
-|                                | (Validated targetOrigin & Session Nonce)         |
-|                                v                                                  |
-|  DodoCheckout Callbacks <------+                                                  |
-|   - onSuccess({ sessionId })                                                      |
-|   - onError({ code, message })                                                    |
-|   - onClose({ reason })                                                           |
-|                                                                                   |
-|  Live Merchant Debug Console (Inspector Log)                                      |
-+-----------------------------------------------------------------------------------+
+```bash
+npm run build
 ```
 
-### Communication Protocol
+The build runs TypeScript compilation followed by the Vite production build.
 
-1. **SDK Initialization (`DodoCheckout.open(config)`)**:
-   - The SDK dynamically appends a modal backdrop overlay to the merchant's DOM with an isolated `<iframe>` pointing to the checkout application.
-   - Generates a single-use session nonce (`nonce_...`).
+## Live Demo
 
-2. **Iframe Handshake (`DODO_CHECKOUT_READY` -> `DODO_CHECKOUT_INIT`)**:
-   - As soon as the iframe loads, it emits `DODO_CHECKOUT_READY` to `window.parent`.
-   - The SDK receives this and sends `DODO_CHECKOUT_INIT` with the session nonce, product details, theme, and prefilled customer email.
+- [Live demo store](https://dodo-payment.vercel.app/)
 
-3. **Strict Origin & Schema Verification**:
-   - Every `postMessage` is filtered by target origin and validated against typed message schemas (`DODO_CHECKOUT_SUCCESS`, `DODO_CHECKOUT_ERROR`, `DODO_CHECKOUT_CLOSE`).
-   - **Zero Card Data Leakage**: Raw card numbers, CVC, and expiry dates are processed purely inside the iframe's isolated origin and **never** transmitted back across postMessage to the merchant host DOM.
+- [Hosted checkout application](https://dodo-payment.vercel.app/checkout.html)
 
-4. **Event Bus & Callback Dispatch**:
-   - Upon payment resolution, the SDK calls the developer's registered callbacks:
-     - `onSuccess({ sessionId })`
-     - `onError({ code, message })`
-     - `onClose({ reason })`
+- [Source repository](https://github.com/rajeshrk10/Dodo_Payments)
 
----
+## SDK Usage
 
-## Test Card Simulation Engine
+The SDK exposes a small `DodoCheckout.open()` API with the callback shape requested in the assignment:
 
-| Card Number | Behavior & Outcome | Notes |
-| :--- | :--- | :--- |
-| `4242 4242 4242 4242` | **Success** | Immediately authorizes payment, triggers confetti animation, and returns `sessionId`. |
-| `4000 0000 0000 0002` | **Declines** | Rejects payment with `CARD_DECLINED` error banner and fires `onError` callback. |
-| `4000 0000 0000 0341` | **Stateful Retry** | **Attempt 1**: Fails with bank connection timeout. <br/> **Attempt 2**: Succeeds authorization on retry within same session. |
+```
+DodoCheckout.open({
+  productId: "prod_123",
+  onSuccess: ({ sessionId }) => {
+    console.log("Payment succeeded:", sessionId);
+  },
+  onClose: ({ reason }) => {
+    console.log("Checkout closed:", reason);
+  },
+  onError: ({ code, message }) => {
+    console.error("Payment failed:", code, message);
+  },
+});
+```
 
----
+The demo supplies additional optional values such as the product name, amount, currency, and prefilled customer email:
 
-## Two Technical Decisions Went Back & Forth On
+```
+DodoCheckout.open({
+  productId: product.id,
+  productName: product.name,
+  amount: product.priceCents,
+  currency: product.currency,
+  customerEmail: "alex.developer@example.com",
+  onSuccess: ({ sessionId }) => {
+    // Update the merchant order state.
+  },
+  onError: ({ code, message }) => {
+    // Show a payment failure message.
+  },
+  onClose: ({ reason }) => {
+    // Record how the checkout ended.
+  },
+});
+```
 
-### 1. Iframe Overlay vs. Shadow DOM / Web Components
-- **Initial Thought**: Building the checkout form inside a Web Component / Shadow DOM would eliminate iframe overhead and provide smoother host integration.
-- **The Call**: **Chose Isolated Iframe Overlay.**
-- **Why**: PCI-DSS compliance and card security mandate strict isolation. In a Shadow DOM setup, malicious JavaScript running on the merchant host page (e.g. compromised analytics or browser extensions) could access input elements, attach keyloggers, or inspect memory. Sandboxed iframe isolation guarantees that sensitive card data remains entirely out of reach of the merchant DOM.
+The SDK also exposes `DodoCheckout.onEvent()` for the demo event inspector. This is a development/debugging facility rather than a required payment callback.
 
-### 2. PostMessage Communication: One-Way Callback Emission vs. Bidirectional State Machine
-- **Initial Thought**: Emit simple one-way fire-and-forget events (`payment_success`, `payment_failed`) from iframe to host.
-- **The Call**: **Chose Bidirectional Handshake Protocol with Nonce Checks & Dynamic Resizing.**
-- **Why**: Payment flows have complex intermediate states (e.g., resizing based on dynamic error banners, user confirming early modal dismissal while payment is `processing`, stateful retry card attempts). A bidirectional protocol ensures the host SDK can manage modal lifecycle safety (preventing accidental backdrop clicks during processing) while keeping the host DOM informed without exposing raw state.
+## Architecture
 
----
+The project is organized into three layers:
+
+```
+Merchant demo page
+  └─ Buy Now
+      └─ DodoCheckout.open(config)
+          └─ Creates modal overlay and checkout iframe
+              └─ Checkout app renders product, email, card, and Pay form
+                  └─ Sends typed checkout messages to the host
+                      └─ SDK dispatches onSuccess, onError, and onClose
+```
+
+### How the pieces communicate
+
+1. The demo page calls `DodoCheckout.open(config)`.
+
+1. The SDK creates a modal overlay containing the checkout iframe.
+
+1. The checkout iframe sends `DODO_CHECKOUT_READY` to the host.
+
+1. The SDK responds with `DODO_CHECKOUT_INIT`, including product details, customer email, and a generated session nonce.
+
+1. The customer completes the form inside the checkout iframe.
+
+1. The checkout sends a success, error, processing, close, or resize message to the SDK.
+
+1. The SDK dispatches the registered merchant callbacks.
+
+1. The demo displays SDK communication events in its event inspector.
+
+The checkout app processes card values inside the iframe and does not include raw card number, expiry, or CVC values in merchant callbacks or the demo event log. The merchant receives only the result data needed for the integration, such as `sessionId`, error code/message, or close reason.
+
+## Callback Contract
+
+The SDK calls the registered callbacks using these shapes:
+
+```
+onSuccess({ sessionId: string });
+onError({ code: string, message: string });
+onClose({ reason: "user_cancelled" | "payment_completed" | "error" });
+```
+
+The demo tracks these callback outcomes in the header metrics:
+
+- Successful payments
+
+- Payment errors
+
+- Checkout closes
+
+Callback functions are protected with `try/catch` inside the SDK so a merchant callback exception does not break checkout cleanup.
+
+## Required Test Cards
+
+| Card number | Expected behavior |
+| --- | --- |
+| `4242 4242 4242 4242` | Succeeds immediately and returns a generated `sessionId`. |
+| `4000 0000 0000 0002` | Declines with `CARD_DECLINED`, keeps the checkout open, and allows another attempt. |
+| `4000 0000 0000 0341` | Fails with a retryable bank timeout on the first attempt, then succeeds on retry within the same checkout session. |
+
+The demo shows these cards in a test-card panel with click-to-copy behavior.
+
+## Duplicate Buy-Click Handling
+
+The checkout uses a modal overlay, so the first Buy click normally covers the merchant page. To make rapid physical double-click behavior deterministic and demonstrable, the demo uses a **500 ms debounce window**:
+
+- A single Buy click waits 500 ms and then opens one checkout.
+
+- A second click within the 500 ms window cancels the pending open and opens exactly one checkout.
+
+- The SDK receives `duplicateOpenHandled: true` for that flow.
+
+- The event inspector records `DodoCheckout.open_duplicate_handled`.
+
+- The checkout shows a customer-facing reassurance below the Pay button:
+
+> Only one payment session is active. You won’t be charged twice.
+
+The SDK also has an independent active-overlay guard. If `DodoCheckout.open()` is called while another checkout is already open, the second request is ignored and the SDK emits `DodoCheckout.open_ignored`. This protects integrations that issue duplicate calls programmatically.
+
+The two protections serve different purposes:
+
+1. The demo’s 500 ms window makes a rapid physical Buy-button double-click observable.
+
+1. The SDK’s active-overlay guard prevents multiple checkout instances from being created by any integration.
+
+## Checkout States
+
+The checkout handles the following states:
+
+- **Idle:** Form fields are editable and Pay is available.
+
+- **Processing:** A simulated banking delay is shown and the form is disabled.
+
+- **Success:** A confirmation screen displays the generated session ID before the modal closes.
+
+- **Error:** A specific error message is shown and the customer can retry.
+
+- **Close:** ESC, the close button, or a safe backdrop click closes the checkout and reports a close reason.
+
+The form also validates email, card number, expiry date, and CVC before starting payment simulation. Card brand detection, card-number formatting, expiry formatting, loading animation, error animation, and success animation are included.
+
+## Security Boundary and Current Scope
+
+The checkout form is hosted in an iframe so card fields are kept separate from the merchant page’s normal DOM and are not returned through merchant callbacks or the demo event log.
+
+This assignment implementation uses `postMessage` for communication and generates a per-checkout nonce for the initialization handshake. The current demo is served from a single Vercel origin and uses wildcard `postMessage` targets for simplicity. Full production hardening would additionally:
+
+- Host the checkout on a dedicated checkout origin.
+
+- Use explicit `targetOrigin` values instead of `"*"`.
+
+- Validate `event.origin` and `event.source` for every incoming message.
+
+- Validate the nonce on every message, not only during initialization.
+
+- Add server-side payment authorization and webhook verification.
+
+- Publish the SDK as a standalone browser bundle or npm package.
+
+Therefore, this repository demonstrates the requested frontend assignment flow; it is not presented as production-ready payment infrastructure.
+
+## Design Decisions
+
+### 1. Modal iframe instead of an inline form
+
+An iframe modal keeps the customer on the merchant page while giving the checkout its own UI and form boundary. The modal also makes the checkout feel like a focused payment step rather than another section of the product page.
+
+The trade-off is that the merchant Buy button is covered after the first click. The 500 ms debounce window and SDK active-overlay guard make rapid and programmatic duplicate requests safe and observable.
+
+### 2. Typed message protocol instead of direct DOM coupling
+
+The merchant page and checkout communicate through named messages such as `DODO_CHECKOUT_INIT`, `DODO_CHECKOUT_PROCESSING`, `DODO_CHECKOUT_SUCCESS`, `DODO_CHECKOUT_ERROR`, and `DODO_CHECKOUT_CLOSE`. This keeps the host integration small and prevents the merchant page from depending on the checkout’s internal React state.
+
+## What I Would Explore Next
+
+1. Add a dedicated checkout origin with explicit origin and nonce validation.
+
+1. Publish the SDK as a standalone npm package and browser bundle.
+
+1. Add server-side payment authorization, webhook verification, and signed event delivery.
+
+1. Add tokenization so the frontend never handles a raw payment credential beyond the hosted payment boundary.
+
+1. Add production accessibility review, automated end-to-end tests, and network-failure simulations.
+
+1. Explore passkeys, Apple Pay, and other accelerated payment methods.
 
 ## Project Structure
 
 ```
-dodo-checkout/
-├── index.html                   # Merchant Demo Store Entry
-├── checkout.html                # Sandboxed Checkout Iframe App Entry
-├── vite.config.ts               # Multi-page build configuration
-├── tsconfig.json                # Strict TypeScript configuration
+Dodo_Payments/
+├── index.html                         # Merchant demo entry
+├── checkout.html                      # Checkout iframe entry
+├── vite.config.ts                     # Vite multi-page configuration
+├── package.json                        # Scripts and dependencies
 ├── src/
 │   ├── types/
-│   │   └── checkout.ts          # Type definitions for SDK, messages & events
+│   │   └── checkout.ts                # SDK and message types
 │   ├── utils/
-│   │   └── cardUtils.ts         # Luhn validation, brand detection, formatting
+│   │   └── cardUtils.ts               # Card formatting and validation
 │   ├── sdk/
-│   │   └── dodo-checkout-sdk.ts # Main DodoCheckout SDK implementation
+│   │   └── dodo-checkout-sdk.ts       # Checkout SDK implementation
 │   ├── checkout/
-│   │   ├── CheckoutApp.tsx      # React Checkout Web Application
-│   │   └── main.tsx             # Entry script for checkout iframe
-│   └── demo/
-│       ├── DemoStore.tsx        # Merchant Demo Store with live inspector
-│       └── main.tsx             # Entry script for demo store
-└── README.md                    # Project documentation
+│   │   ├── CheckoutApp.tsx            # Hosted checkout UI and simulation
+│   │   └── main.tsx                   # Checkout entry script
+│   ├── demo/
+│   │   ├── DemoStore.tsx              # Merchant demo and event inspector
+│   │   └── main.tsx                   # Demo entry script
+│   └── index.css                      # Global styles and animations
+└── README.md                          # Project documentation
 ```
-## Why a Single Repository?
 
-The assignment conceptually describes three separate pieces — an SDK script, a checkout app, and a demo site. In production, these would live apart:
+## Submission Checklist
 
-SDK → published as an independent npm package (@dodo/checkout) with its own versioning and changelog
-Checkout app → deployed on a dedicated locked-down domain (e.g. checkout.dodopayments.com) for strict origin isolation
-Demo site → merchant-facing, deployed and versioned independently
+- Live demo link: [https://dodo-payment.vercel.app/](https://dodo-payment.vercel.app/)
 
-For this assignment, I chose a single repo with clear folder separation (src/sdk, src/checkout, src/demo) for two deliberate reasons:
+- Source code: [GitHub repository](https://github.com/rajeshrk10/Dodo_Payments)
 
-Shared types without overhead — the SDK, checkout app, and demo site share the same types/checkout.ts message contracts. In separate repos these would need a shared package or duplication. A monorepo tool like Turborepo would handle this cleanly in production.
-Single Vercel deployment — since the SDK and checkout app are served from the same origin (dodo-payment.vercel.app), the postMessage origin validation works without any CORS configuration. Splitting to separate domains in production would require explicit origin allowlisting on both sides — the right call for security, but unnecessary complexity for a 72-hour assignment.
+- Local setup and build instructions: included above
 
-The folder boundaries are kept intentionally clean so the split into separate packages would be straightforward when taken to production.
+- SDK, checkout, and demo communication model: included above
+
+- Two design decisions: included above
+
+- Future exploration: included above
+
+- Required test cards: included above
+
+## License and Assignment Scope
+
+This project was built as a frontend engineering assignment demonstration. The payment flow is intentionally simulated in the browser and does not connect to a real payment processor or production payment backend.
