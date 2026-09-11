@@ -151,7 +151,7 @@ dodo-checkout/
 │       └── main.tsx             # Entry script for demo store
 └── README.md                    # Project documentation
 ```
-Why a Single Repository?
+## Why a Single Repository?
 
 The assignment conceptually describes three separate pieces — an SDK script, a checkout app, and a demo site. In production, these would live apart:
 
