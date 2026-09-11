@@ -115,19 +115,6 @@ The project is structured into three main layers:
 
 ---
 
-## What I'd Explore Next
-
-1. **Passkeys & WebAuthn / Apple Pay Integration**:
-   - Support device-native biometric authentication (`PublicKeyCredential`) for 1-click zero-friction checkout.
-2. **Server-Side Webhook Verification & Cryptographic Signatures**:
-   - Implement HMAC-SHA256 signature verification (`dodo-signature`) so merchants verify checkout events on their backend before granting digital fulfillment.
-3. **Zero-Knowledge Tokenization (PCI-DSS SAQ-A Compliance)**:
-   - Integrate client-side card tokenization so actual card numbers are converted into single-use tokens (`tok_...`) before reaching payment processors.
-4. **Offline Service Worker Queue & Progressive Web App Support**:
-   - Queue pending payment authorization requests during spotty network connectivity and auto-retry upon reconnection.
-
----
-
 ## Project Structure
 
 ```
