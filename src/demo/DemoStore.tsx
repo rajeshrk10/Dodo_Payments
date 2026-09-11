@@ -60,6 +60,7 @@ export default function DemoStore() {
   const [selectedProduct, setSelectedProduct] = useState<ProductItem>(PRODUCTS[0]);
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const [copiedCard, setCopiedCard] = useState<string | null>(null);
+  const [openingProductId, setOpeningProductId] = useState<string | null>(null);
 
   // Callback Metrics
   const [stats, setStats] = useState({
@@ -69,6 +70,8 @@ export default function DemoStore() {
   });
 
   const consoleEndRef = React.useRef<HTMLDivElement | null>(null);
+  const openTimerRef = React.useRef<number | null>(null);
+  const pendingProductRef = React.useRef<ProductItem | null>(null);
 
   // Subscribe to SDK event logger
   useEffect(() => {
@@ -87,24 +90,55 @@ export default function DemoStore() {
     }
   }, [events]);
 
-  const handleOpenCheckout = (prod: ProductItem) => {
-    DodoCheckout.open({
+  useEffect(() => {
+    return () => {
+      if (openTimerRef.current) {
+        clearTimeout(openTimerRef.current);
+      }
+    };
+  }, []);
+
+  const createCheckoutConfig = (prod: ProductItem, duplicateOpenHandled = false) => ({
       productId: prod.id,
       productName: prod.name,
       productDescription: 'Secure embedded checkout for fast, trusted purchases.',
       amount: prod.priceCents,
       currency: prod.currency,
       customerEmail: 'alex.developer@example.com',
-      onSuccess: ({ sessionId }) => {
+      duplicateOpenHandled,
+      onSuccess: ({ sessionId }: { sessionId: string }) => {
         setStats((s) => ({ ...s, successes: s.successes + 1 }));
       },
-      onError: ({ code, message }) => {
+      onError: ({ code, message }: { code: string; message: string }) => {
         setStats((s) => ({ ...s, errors: s.errors + 1 }));
       },
-      onClose: ({ reason }) => {
+      onClose: ({ reason }: { reason: string }) => {
         setStats((s) => ({ ...s, closes: s.closes + 1 }));
       },
     });
+
+  const handleOpenCheckout = (prod: ProductItem) => {
+    // Keep the merchant button available briefly so a rapid physical
+    // double-click can be detected before the modal covers the page.
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+
+      const productToOpen = pendingProductRef.current ?? prod;
+      pendingProductRef.current = null;
+      setOpeningProductId(null);
+      DodoCheckout.open(createCheckoutConfig(productToOpen, true));
+      return;
+    }
+
+    pendingProductRef.current = prod;
+    setOpeningProductId(prod.id);
+    openTimerRef.current = window.setTimeout(() => {
+      openTimerRef.current = null;
+      pendingProductRef.current = null;
+      setOpeningProductId(null);
+      DodoCheckout.open(createCheckoutConfig(prod));
+    }, 500);
   };
 
   const copyTestCard = (card: string, label: string) => {
@@ -307,10 +341,12 @@ export default function DemoStore() {
                         e.stopPropagation();
                         handleOpenCheckout(product);
                       }}
+                      disabled={openingProductId !== null && openingProductId !== product.id}
+                      aria-label={`Buy ${product.name}`}
                       className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 cursor-pointer shrink-0"
                     >
                       <ShoppingBag className="w-4 h-4" />
-                      <span>Buy Now</span>
+                      <span>{openingProductId === product.id ? 'Opening checkout…' : 'Buy Now'}</span>
                     </button>
                   </div>
                 </div>

@@ -38,7 +38,14 @@ class DodoCheckoutSDK {
   public open(config: SDKOpenOptions): void {
     // Prevent duplicate modals
     if (this.activeOverlay) {
-      console.warn('[DodoCheckout] Checkout modal is already open.');
+      const message = 'Checkout is already open. Duplicate open request ignored.';
+      console.warn(`[DodoCheckout] ${message}`);
+      this.emitEvent(
+        'TO_IFRAME',
+        'DodoCheckout.open_ignored',
+        { reason: 'checkout_already_open' },
+        'warning'
+      );
       return;
     }
 
@@ -52,6 +59,15 @@ class DodoCheckoutSDK {
       currency: config.currency,
       nonce: this.currentNonce,
     }, 'info');
+
+    if (config.duplicateOpenHandled) {
+      this.emitEvent(
+        'TO_IFRAME',
+        'DodoCheckout.open_duplicate_handled',
+        { reason: 'rapid_buy_click', action: 'opened_one_checkout' },
+        'warning'
+      );
+    }
 
     // Create Modal Backdrop Overlay
     const overlay = document.createElement('div');
@@ -143,6 +159,7 @@ class DodoCheckoutSDK {
               currency: this.activeConfig.currency || 'USD',
               customerEmail: this.activeConfig.customerEmail,
               allowDiscountCode: this.activeConfig.allowDiscountCode,
+              duplicateOpenHandled: this.activeConfig.duplicateOpenHandled,
             }
           };
           this.activeIframe.contentWindow.postMessage(initPayload, '*');

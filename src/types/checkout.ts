@@ -19,6 +19,7 @@ export interface DodoCheckoutConfig {
   theme?: CheckoutTheme;
   customerEmail?: string;
   allowDiscountCode?: boolean;
+  duplicateOpenHandled?: boolean;
   
   // Callbacks required by assignment brief
   onSuccess: (data: { sessionId: string }) => void;
