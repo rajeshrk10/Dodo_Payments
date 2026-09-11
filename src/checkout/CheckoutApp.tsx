@@ -384,6 +384,9 @@ export default function CheckoutApp() {
                 </label>
                 <input
                   type="password"
+                  inputMode="numeric"
+                  name="card-cvc"
+                  autoComplete="cc-csc"
                   required
                   disabled={status !== 'IDLE' && status !== 'ERROR'}
                   value={cvc}
@@ -408,7 +411,7 @@ export default function CheckoutApp() {
                 role="status"
                 className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-[11px] text-amber-300 animate-fadeIn"
               >
-               Tried to open checkout multiple times. This session is already active. Please complete the payment or close this window.
+                Only one payment session is active. You won’t be charged twice.
               </div>
             )}
           </form>
