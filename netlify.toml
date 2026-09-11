@@ -1,0 +1,6 @@
+[build]
+  command = "chmod +x node_modules/.bin/tsc 2>/dev/null || true && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
