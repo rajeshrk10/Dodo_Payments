@@ -237,7 +237,7 @@ export default function CheckoutApp() {
   return (
     <div className={`w-full min-h-screen p-4 text-slate-100 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between ${isShaking ? 'animate-shake' : ''}`}>
       {/* Header */}
-      <div className="pt-4">
+      <div className="pt-12">
         <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-3">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
