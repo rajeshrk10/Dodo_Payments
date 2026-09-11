@@ -27,6 +27,15 @@ Open your browser to [http://localhost:3000](http://localhost:3000).
 
 ---
 
+## Live Deployment
+
+The application is deployed and available at:
+
+- **Live Demo Store**: https://dodo-payements.vercel.app/
+- **Live Checkout Iframe**: https://dodo-payements.vercel.app/checkout.html
+
+---
+
 ## Architecture & How the Pieces Talk to Each Other
 
 The project is structured into three main layers:
