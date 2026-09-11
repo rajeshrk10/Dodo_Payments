@@ -31,8 +31,8 @@ Open your browser to [http://localhost:3000](http://localhost:3000).
 
 The application is deployed and available at:
 
-- **Live Demo Store**: https://dodo-payements.vercel.app/
-- **Live Checkout Iframe**: https://dodo-payements.vercel.app/checkout.html
+- **Live Demo Store**: https://dodo-payment.vercel.app/
+- **Live Checkout Iframe**: https://dodo-payment.vercel.app/checkout.html
 
 ---
 
@@ -151,3 +151,17 @@ dodo-checkout/
 │       └── main.tsx             # Entry script for demo store
 └── README.md                    # Project documentation
 ```
+Why a Single Repository?
+
+The assignment conceptually describes three separate pieces — an SDK script, a checkout app, and a demo site. In production, these would live apart:
+
+SDK → published as an independent npm package (@dodo/checkout) with its own versioning and changelog
+Checkout app → deployed on a dedicated locked-down domain (e.g. checkout.dodopayments.com) for strict origin isolation
+Demo site → merchant-facing, deployed and versioned independently
+
+For this assignment, I chose a single repo with clear folder separation (src/sdk, src/checkout, src/demo) for two deliberate reasons:
+
+Shared types without overhead — the SDK, checkout app, and demo site share the same types/checkout.ts message contracts. In separate repos these would need a shared package or duplication. A monorepo tool like Turborepo would handle this cleanly in production.
+Single Vercel deployment — since the SDK and checkout app are served from the same origin (dodo-payment.vercel.app), the postMessage origin validation works without any CORS configuration. Splitting to separate domains in production would require explicit origin allowlisting on both sides — the right call for security, but unnecessary complexity for a 72-hour assignment.
+
+The folder boundaries are kept intentionally clean so the split into separate packages would be straightforward when taken to production.
