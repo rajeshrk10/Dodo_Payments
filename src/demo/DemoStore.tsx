@@ -149,7 +149,7 @@ export default function DemoStore() {
             </div>
 
             <a
-              href="https://github.com"
+              href="https://github.com/rajeshrk10/Dodo_Payements"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-colors"
